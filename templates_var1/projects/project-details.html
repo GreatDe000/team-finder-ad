@@ -5,6 +5,7 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/project_details.css' %}">
+<link rel="stylesheet" href="{% static 'css/skills.css' %}">
 {% endblock %}
 
 {% with page_id="project" %}
@@ -93,6 +94,31 @@
             {% endif %}
         </div>
 
+    </div>
+
+
+    <div class="project-skills">
+        <h3>Необходимые навыки</h3>
+        <div id="skills-container" class="skills-container" data-project-id="{{ project.id }}">
+            {% for skill in project.skills.all %}
+                <span class="skill-chip" data-id="{{ skill.id }}">
+                    {{ skill.name }}
+                    {% if project.owner.id == request.user.id %}
+                        <button type="button" class="remove-skill-btn" aria-label="Удалить" title="Удалить">×</button>
+                    {% endif %}
+                </span>
+            {% empty %}
+                <span class="skill-empty">Навыки не указаны</span>
+            {% endfor %}
+
+            {% if project.owner.id == request.user.id %}
+                <button type="button" id="add-skill-btn" class="add-skill-btn">+ Добавить навык</button>
+            {% endif %}
+        </div>
+        <div id="skill-input-wrapper" class="skill-input-wrapper hidden">
+            <input type="text" id="skill-input" placeholder="Введите навык..." autocomplete="off"/>
+            <ul id="skill-suggestions" class="skill-suggestions hidden"></ul>
+        </div>
     </div>
 
     <div class="project-participants-card">
