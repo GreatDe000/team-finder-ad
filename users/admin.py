@@ -15,7 +15,7 @@ class UserAdmin(BaseUserAdmin):
             "Профиль",
             {"fields": ("name", "surname", "avatar", "phone", "github_url", "about")},
         ),
-        ("Связи", {"fields": ("favorites", "skills")}),
+        ("Связи", {"fields": ("favorites",)}),
         (
             "Права",
             {"fields": ("is_active", "is_staff", "is_superuser", "groups", "user_permissions")},
@@ -39,4 +39,4 @@ class UserAdmin(BaseUserAdmin):
             },
         ),
     )
-    filter_horizontal = ("groups", "user_permissions", "favorites", "skills")
+    filter_horizontal = ("groups", "user_permissions", "favorites")

@@ -1,10 +1,8 @@
-import json
-
 import pytest
 from django.contrib.auth import get_user_model
 from django.urls import reverse
 
-from projects.models import Project, Skill
+from projects.models import Project
 
 
 @pytest.fixture
@@ -30,10 +28,8 @@ def users(db):
 @pytest.fixture
 def project(users):
     owner, participant = users
-    skill = Skill.objects.create(name="Django")
     project = Project.objects.create(name="Project", description="Description", owner=owner)
     project.participants.add(owner)
-    project.skills.add(skill)
     participant.favorites.add(project)
     return project
 
@@ -71,21 +67,21 @@ def test_user_filters_are_available_for_auth_user(client, users, project):
 
 
 @pytest.mark.django_db
-def test_project_skill_filter(client, project):
-    response = client.get(reverse("projects:list"), {"skill": "Django"})
+def test_project_complete_by_owner(client, users, project):
+    owner, participant = users
+    client.force_login(owner)
+    response = client.post(reverse("projects:complete", args=(project.pk,)))
+    project.refresh_from_db()
     assert response.status_code == 200
-    assert project in response.context["page_obj"].object_list
+    assert response.json()["project_status"] == Project.CLOSED
+    assert project.status == Project.CLOSED
 
 
 @pytest.mark.django_db
-def test_project_owner_can_add_skill(client, users, project):
+def test_project_toggle_participate(client, users, project):
     owner, participant = users
-    client.force_login(owner)
-    response = client.post(
-        reverse("projects:add_skill", args=(project.pk,)),
-        data=json.dumps({"name": "Python"}),
-        content_type="application/json",
-    )
+    client.force_login(participant)
+    response = client.post(reverse("projects:toggle_participate", args=(project.pk,)))
     assert response.status_code == 200
-    assert response.json()["name"] == "Python"
-    assert project.skills.filter(name="Python").exists()
+    assert response.json()["participant"] is True
+    assert project.participants.filter(pk=participant.pk).exists()

@@ -6,7 +6,6 @@
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/project_list.css' %}">
 <link rel="stylesheet" href="{% static 'css/profile.css' %}">
-<link rel="stylesheet" href="{% static 'css/skills.css' %}">
 {% endblock %}
 
 {% with page_id="profile" %}
@@ -46,11 +45,11 @@
                 {% include 'includes/svg/share.html' %}
             </a>
             {% if request.user.id == user.id %}
-            <a href="/users/edit-profile" class="black-button">
+            <a href="/users/edit-profile/" class="black-button">
                 {% include 'includes/svg/pen.html' %}
                 Редактировать
             </a>
-            <a href="/projects/create-project" class="black-button">
+            <a href="/projects/create-project/" class="black-button">
                 {% include 'includes/svg/plus.html' %}
                 Добавить проект
             </a>
@@ -58,30 +57,6 @@
         </div>
     </div>
 
-
-    <h3>Навыки</h3>
-    <div class="profile-skills">
-        <div id="skills-container" class="skills-container" data-user-id="{{ user.id }}">
-            {% for skill in user.skills.all %}
-                <span class="skill-chip" data-id="{{ skill.id }}">
-                    {{ skill.name }}
-                    {% if request.user.id == user.id %}
-                        <button type="button" class="remove-skill-btn" aria-label="Удалить" title="Удалить">×</button>
-                    {% endif %}
-                </span>
-            {% empty %}
-                <span class="skill-empty">Навыки не указаны</span>
-            {% endfor %}
-
-            {% if request.user.id == user.id %}
-                <button type="button" id="add-skill-btn" class="add-skill-btn">+ Добавить навык</button>
-            {% endif %}
-        </div>
-        <div id="skill-input-wrapper" class="skill-input-wrapper hidden">
-            <input type="text" id="skill-input" placeholder="Введите навык..." autocomplete="off"/>
-            <ul id="skill-suggestions" class="skill-suggestions hidden"></ul>
-        </div>
-    </div>
 
     <h3>Проекты ({{ user.owned_projects.all|length }})</h3>
 

@@ -1,13 +1,9 @@
-import json
-
 from django.contrib.auth import login, logout, update_session_auth_hash
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
-from django.http import HttpResponseBadRequest, HttpResponseForbidden, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
-from django.views.decorators.http import require_GET, require_POST
+from django.views.decorators.http import require_GET
 
-from projects.models import Skill
 from projects.views import query_prefix
 
 from .forms import LoginForm, ProfileForm, RegisterForm, TeamFinderPasswordChangeForm
@@ -52,10 +48,7 @@ def logout_view(request):
 
 @require_GET
 def user_detail(request, pk):
-    profile_user = get_object_or_404(
-        User.objects.prefetch_related("owned_projects", "skills"),
-        pk=pk,
-    )
+    profile_user = get_object_or_404(User.objects.prefetch_related("owned_projects"), pk=pk)
     return render(request, "users/user-details.html", {"user": profile_user})
 
 
@@ -97,9 +90,7 @@ def users_list(request):
             owned_projects__participants=request.user
         ).distinct().order_by("-id")
     elif active_filter == "interested-in-my-projects":
-        users = User.objects.filter(
-            favorites__owner=request.user
-        ).distinct().order_by("-id")
+        users = User.objects.filter(favorites__owner=request.user).distinct().order_by("-id")
     elif active_filter == "participants-of-my-projects":
         users = User.objects.filter(
             participated_projects__owner=request.user
@@ -112,65 +103,3 @@ def users_list(request):
         "query_prefix": query_prefix(request),
     }
     return render(request, "users/participants.html", context)
-
-
-@require_GET
-def skills_list(request):
-    q = request.GET.get("q", "").strip()
-    skills = Skill.objects.order_by("name")
-    if q:
-        skills = skills.filter(name__istartswith=q)
-    return JsonResponse(list(skills.values("id", "name")[:10]), safe=False)
-
-
-@login_required
-@require_POST
-def add_user_skill(request, pk):
-    profile_user = get_object_or_404(User, pk=pk)
-    if request.user != profile_user:
-        return HttpResponseForbidden()
-    payload = request_payload(request)
-    created = False
-    if payload.get("skill_id"):
-        skill = get_object_or_404(Skill, pk=payload["skill_id"])
-    elif payload.get("name"):
-        name = payload["name"].strip()
-        if not name:
-            return HttpResponseBadRequest("Название навыка не указано")
-        skill, created = Skill.objects.get_or_create(name=name)
-    else:
-        return HttpResponseBadRequest("Укажите skill_id или name")
-    added = not profile_user.skills.filter(pk=skill.pk).exists()
-    if added:
-        profile_user.skills.add(skill)
-    return JsonResponse(
-        {
-            "id": skill.pk,
-            "name": skill.name,
-            "skill_id": skill.pk,
-            "created": created,
-            "added": added,
-        }
-    )
-
-
-@login_required
-@require_POST
-def remove_user_skill(request, pk, skill_id):
-    profile_user = get_object_or_404(User, pk=pk)
-    skill = get_object_or_404(Skill, pk=skill_id)
-    if request.user != profile_user:
-        return HttpResponseForbidden()
-    if not profile_user.skills.filter(pk=skill.pk).exists():
-        return HttpResponseBadRequest("Навык не добавлен к пользователю")
-    profile_user.skills.remove(skill)
-    return JsonResponse({"status": "ok"})
-
-
-def request_payload(request):
-    if request.content_type == "application/json" and request.body:
-        try:
-            return json.loads(request.body.decode())
-        except json.JSONDecodeError:
-            return {}
-    return request.POST

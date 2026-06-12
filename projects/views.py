@@ -1,13 +1,11 @@
-import json
-
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
-from django.http import HttpResponseBadRequest, HttpResponseForbidden, JsonResponse
+from django.http import HttpResponseForbidden, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_GET, require_POST
 
 from .forms import ProjectForm
-from .models import Project, Skill
+from .models import Project
 
 
 def query_prefix(request, *excluded):
@@ -24,17 +22,11 @@ def paginate(request, queryset, per_page=12):
 
 @require_GET
 def project_list(request):
-    projects = Project.objects.select_related("owner").prefetch_related("participants", "skills")
-    active_skill = request.GET.get("skill")
-    if active_skill:
-        projects = projects.filter(skills__name=active_skill)
+    projects = Project.objects.select_related("owner").prefetch_related("participants")
     projects = projects.order_by("-created_at")
-    all_skills = Skill.objects.order_by("name").values_list("name", flat=True)
     context = {
         "projects": projects,
         "page_obj": paginate(request, projects),
-        "all_skills": all_skills,
-        "active_skill": active_skill,
         "query_prefix": query_prefix(request),
     }
     return render(request, "projects/project_list.html", context)
@@ -51,7 +43,7 @@ def favorite_projects(request):
 @require_GET
 def project_detail(request, pk):
     project = get_object_or_404(
-        Project.objects.select_related("owner").prefetch_related("participants", "skills"),
+        Project.objects.select_related("owner").prefetch_related("participants"),
         pk=pk,
     )
     return render(request, "projects/project-details.html", {"project": project})
@@ -125,67 +117,3 @@ def edit_project(request, pk):
     else:
         form = ProjectForm(instance=project)
     return render(request, "projects/create-project.html", {"form": form, "is_edit": True})
-
-
-@require_GET
-def skills_list(request):
-    q = request.GET.get("q", "").strip()
-    skills = Skill.objects.order_by("name")
-    if q:
-        skills = skills.filter(name__istartswith=q)
-    data = list(skills.values("id", "name")[:10])
-    return JsonResponse(data, safe=False)
-
-
-@login_required
-@require_POST
-def add_project_skill(request, pk):
-    project = get_object_or_404(Project, pk=pk)
-    if request.user != project.owner and not request.user.is_staff:
-        return HttpResponseForbidden()
-    payload = request_payload(request)
-    skill = None
-    created = False
-    if payload.get("skill_id"):
-        skill = get_object_or_404(Skill, pk=payload["skill_id"])
-    elif payload.get("name"):
-        name = payload["name"].strip()
-        if not name:
-            return HttpResponseBadRequest("Название навыка не указано")
-        skill, created = Skill.objects.get_or_create(name=name)
-    else:
-        return HttpResponseBadRequest("Укажите skill_id или name")
-    added = not project.skills.filter(pk=skill.pk).exists()
-    if added:
-        project.skills.add(skill)
-    return JsonResponse(
-        {
-            "id": skill.pk,
-            "name": skill.name,
-            "skill_id": skill.pk,
-            "created": created,
-            "added": added,
-        }
-    )
-
-
-@login_required
-@require_POST
-def remove_project_skill(request, pk, skill_id):
-    project = get_object_or_404(Project, pk=pk)
-    skill = get_object_or_404(Skill, pk=skill_id)
-    if request.user != project.owner and not request.user.is_staff:
-        return HttpResponseForbidden()
-    if not project.skills.filter(pk=skill.pk).exists():
-        return HttpResponseBadRequest("Навык не добавлен к проекту")
-    project.skills.remove(skill)
-    return JsonResponse({"status": "ok"})
-
-
-def request_payload(request):
-    if request.content_type == "application/json" and request.body:
-        try:
-            return json.loads(request.body.decode())
-        except json.JSONDecodeError:
-            return {}
-    return request.POST

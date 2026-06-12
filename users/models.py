@@ -43,7 +43,6 @@ class User(AbstractBaseUser, PermissionsMixin):
         related_name="interested_users",
         blank=True,
     )
-    skills = models.ManyToManyField("projects.Skill", related_name="users", blank=True)
 
     objects = UserManager()
 

@@ -17,7 +17,7 @@ class RegisterForm(forms.ModelForm):
         labels = {
             "name": "Имя",
             "surname": "Фамилия",
-            "email": "Имейл",
+            "email": "Email",
         }
 
     def save(self, commit=True):
@@ -29,7 +29,7 @@ class RegisterForm(forms.ModelForm):
 
 
 class LoginForm(forms.Form):
-    email = forms.EmailField(label="Имейл")
+    email = forms.EmailField(label="Email")
     password = forms.CharField(label="Пароль", widget=forms.PasswordInput)
 
     def __init__(self, request=None, *args, **kwargs):
@@ -44,7 +44,7 @@ class LoginForm(forms.Form):
         if email and password:
             self.user_cache = authenticate(self.request, username=email, password=password)
             if self.user_cache is None:
-                raise forms.ValidationError("Неверный имейл или пароль")
+                raise forms.ValidationError("Неверный email или пароль")
         return cleaned_data
 
     def get_user(self):

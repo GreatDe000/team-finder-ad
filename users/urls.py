@@ -11,8 +11,5 @@ urlpatterns = [
     path("list/", views.users_list, name="list"),
     path("edit-profile/", views.edit_profile, name="edit_profile"),
     path("change-password/", views.change_password, name="change_password"),
-    path("skills/", views.skills_list, name="skills"),
     path("<int:pk>/", views.user_detail, name="detail"),
-    path("<int:pk>/skills/add/", views.add_user_skill, name="add_skill"),
-    path("<int:pk>/skills/<int:skill_id>/remove/", views.remove_user_skill, name="remove_skill"),
 ]
