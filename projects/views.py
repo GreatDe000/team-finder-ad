@@ -1,23 +1,35 @@
+from http import HTTPStatus
+
 from django.contrib.auth.decorators import login_required
-from django.core.paginator import Paginator
-from django.http import HttpResponseForbidden, JsonResponse
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_GET, require_POST
+
+from team_finder.utils import paginate, query_prefix
 
 from .forms import ProjectForm
 from .models import Project
 
-
-def query_prefix(request, *excluded):
-    params = request.GET.copy()
-    for key in ("page", *excluded):
-        params.pop(key, None)
-    encoded = params.urlencode()
-    return f"{encoded}&" if encoded else ""
+PROJECT_NOT_FOUND_MESSAGE = "Проект не найден"
+FORBIDDEN_MESSAGE = "Недостаточно прав"
 
 
-def paginate(request, queryset, per_page=12):
-    return Paginator(queryset, per_page).get_page(request.GET.get("page"))
+def get_project_for_json(pk):
+    return Project.objects.filter(pk=pk).first()
+
+
+def json_not_found(message=PROJECT_NOT_FOUND_MESSAGE):
+    return JsonResponse(
+        {"status": "error", "message": message},
+        status=HTTPStatus.NOT_FOUND,
+    )
+
+
+def json_forbidden(message=FORBIDDEN_MESSAGE):
+    return JsonResponse(
+        {"status": "error", "message": message},
+        status=HTTPStatus.FORBIDDEN,
+    )
 
 
 @require_GET
@@ -52,22 +64,25 @@ def project_detail(request, pk):
 @login_required
 @require_POST
 def toggle_favorite(request, pk):
-    project = get_object_or_404(Project, pk=pk)
-    if project in request.user.favorites.all():
+    project = get_project_for_json(pk)
+    if project is None:
+        return json_not_found()
+    is_favorited = request.user.favorites.filter(pk=project.pk).exists()
+    if is_favorited:
         request.user.favorites.remove(project)
-        favorited = False
     else:
         request.user.favorites.add(project)
-        favorited = True
-    return JsonResponse({"status": "ok", "favorited": favorited})
+    return JsonResponse({"status": "ok", "favorited": not is_favorited})
 
 
 @login_required
 @require_POST
 def complete_project(request, pk):
-    project = get_object_or_404(Project, pk=pk)
+    project = get_project_for_json(pk)
+    if project is None:
+        return json_not_found()
     if request.user != project.owner and not request.user.is_staff:
-        return HttpResponseForbidden()
+        return json_forbidden()
     if project.status == Project.OPEN:
         project.status = Project.CLOSED
         project.save(update_fields=("status",))
@@ -77,16 +92,17 @@ def complete_project(request, pk):
 @login_required
 @require_POST
 def toggle_participate(request, pk):
-    project = get_object_or_404(Project, pk=pk)
+    project = get_project_for_json(pk)
+    if project is None:
+        return json_not_found()
     if request.user == project.owner:
         return JsonResponse({"status": "ok", "participant": True})
-    if request.user in project.participants.all():
+    is_participant = project.participants.filter(pk=request.user.pk).exists()
+    if is_participant:
         project.participants.remove(request.user)
-        participant = False
     else:
         project.participants.add(request.user)
-        participant = True
-    return JsonResponse({"status": "ok", "participant": participant})
+    return JsonResponse({"status": "ok", "participant": not is_participant})
 
 
 @login_required
@@ -108,7 +124,7 @@ def create_project(request):
 def edit_project(request, pk):
     project = get_object_or_404(Project, pk=pk)
     if request.user != project.owner and not request.user.is_staff:
-        return HttpResponseForbidden()
+        return json_forbidden()
     if request.method == "POST":
         form = ProjectForm(request.POST, instance=project)
         if form.is_valid():

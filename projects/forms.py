@@ -1,8 +1,10 @@
 from django import forms
 
-from users.forms import validate_github_url
+from users.utils import validate_github_url
 
 from .models import Project
+
+PROJECT_DESCRIPTION_ROWS = 6
 
 
 class ProjectForm(forms.ModelForm):
@@ -20,7 +22,7 @@ class ProjectForm(forms.ModelForm):
             "status": "Статус",
         }
         widgets = {
-            "description": forms.Textarea(attrs={"rows": 6}),
+            "description": forms.Textarea(attrs={"rows": PROJECT_DESCRIPTION_ROWS}),
         }
 
     def clean_github_url(self):

@@ -1,11 +1,10 @@
-import re
-from urllib.parse import urlparse
-
 from django import forms
 from django.contrib.auth import authenticate
-from django.contrib.auth.forms import PasswordChangeForm
 
 from .models import User
+from .utils import validate_github_url, validate_phone
+
+PROFILE_ABOUT_ROWS = 4
 
 
 class RegisterForm(forms.ModelForm):
@@ -64,40 +63,15 @@ class ProfileForm(forms.ModelForm):
             "github_url": "GitHub",
         }
         widgets = {
-            "about": forms.Textarea(attrs={"rows": 4}),
+            "about": forms.Textarea(attrs={"rows": PROFILE_ABOUT_ROWS}),
         }
 
     def clean_phone(self):
-        phone = self.cleaned_data.get("phone")
-        if not phone:
-            return None
-        phone = phone.strip().replace(" ", "").replace("-", "")
-        if re.fullmatch(r"8\d{10}", phone):
-            phone = "+7" + phone[1:]
-        elif not re.fullmatch(r"\+7\d{10}", phone):
-            raise forms.ValidationError(
-                "Телефон должен быть в формате 8XXXXXXXXXX или +7XXXXXXXXXX"
-            )
-        queryset = User.objects.filter(phone=phone)
-        if self.instance.pk:
-            queryset = queryset.exclude(pk=self.instance.pk)
-        if queryset.exists():
-            raise forms.ValidationError("Пользователь с таким номером телефона уже существует")
-        return phone
+        return validate_phone(
+            self.cleaned_data.get("phone"),
+            User,
+            self.instance.pk,
+        )
 
     def clean_github_url(self):
-        github_url = self.cleaned_data.get("github_url")
-        return validate_github_url(github_url)
-
-
-class TeamFinderPasswordChangeForm(PasswordChangeForm):
-    pass
-
-
-def validate_github_url(value):
-    if not value:
-        return ""
-    host = urlparse(value).netloc.lower()
-    if host not in ("github.com", "www.github.com"):
-        raise forms.ValidationError("Ссылка должна вести на GitHub")
-    return value
+        return validate_github_url(self.cleaned_data.get("github_url"))

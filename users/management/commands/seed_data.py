@@ -11,11 +11,11 @@ class Command(BaseCommand):
         User = get_user_model()
         users_data = [
             {
-                "email": "imya@yandex.ru",
+                "email": "maria@yandex.ru",
                 "password": "password",
                 "name": "Мария",
                 "surname": "Фамилия",
-                "phone": "+88005553535",
+                "phone": "+79005553535",
                 "github_url": "https://github.com/maria",
                 "about": "Frontend-разработчик.",
             },
@@ -51,8 +51,7 @@ class Command(BaseCommand):
             {
                 "name": "EduTracker",
                 "description": (
-                    "Сервис для отслеживания учебных целей "
-                    "и командной работы студентов."
+                    "Сервис для отслеживания учебных целей и командной работы студентов."
                 ),
                 "owner": users[0],
                 "github_url": "https://github.com/maria/edutracker",
